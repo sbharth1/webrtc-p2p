@@ -22,7 +22,14 @@ app.use(body_parser_1.default.json());
 app.get('/', (req, res) => {
     res.send('socket.io backend');
 });
-io.on('conneted', (socket) => {
-    socket.on('connect', () => console.log(`user connected${socket.id}`));
+io.on('connection', (socket) => {
+    console.log(`user connected :: ${socket.id}`);
+    socket.on("message", (val) => {
+        io.emit("message", val);
+        console.log("recieve msg--", val);
+    });
+    socket.on('disconnected', () => {
+        console.log('User disconnected');
+    });
 });
 server.listen(3000);

@@ -22,9 +22,21 @@ app.get('/',(req,res)=>{
     res.send('socket.io backend')
 })
 
-io.on('conneted',(socket:Socket)=>{
-    socket.on('connect',()=> console.log(`user connected${socket.id}`))
+io.on('connection',(socket:Socket)=>{
+   console.log(`user connected :: ${socket.id}`)
+
+    socket.on("message",(val)=>{
+     io.emit("message",val)
+      console.log("recieve msg--",val)
+    })
+    
+
+    socket.on('disconnected', () => { 
+        console.log('User disconnected');
+    });
 })
 
 
 server.listen(3000)
+
+
