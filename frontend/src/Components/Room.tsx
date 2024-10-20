@@ -6,7 +6,8 @@
     const [socketId, SetSocketId] = useState<string | undefined>();
     const [val, setVal] = useState<string>("");
     const [room, setRoom] = useState<string>("");
-    const [peerConnection,setPeerConnection] = useState<undefined>()
+    const [allMsg, setAllMsg] = useState<string[]>([]);
+    const [peerConnection,setPeerConnection] = useState()
     const remoteVideo = useRef<HTMLVideoElement | null>(null);
     const localVideo = useRef<HTMLVideoElement | null>(null);
 
@@ -38,7 +39,7 @@
           }}
 
           localVideo.current!.srcObject = new MediaStream();
-          navigator.mediaDevices.getUserMedia({video:true,audio:true})
+          navigator.mediaDevices.getUserMedia({video:false,audio:false})
           .then((stream) => { 
              stream.getTracks().map((track)=> pc.addTrack(track,stream))
              if(localVideo.current)
@@ -66,13 +67,15 @@
           await pc.addIceCandidate(new RTCIceCandidate(candidate))
          })
          setPeerConnection(pc)
+         console.log(pc)
 
-        socket.on("message",(val)=>{
-          console.log(val)
+        socket.on("message",(val:string)=>{
+          setAllMsg((prev)=> [...prev,val])
         })
       });
 
       return () => {
+        socket.off()
         socket.disconnect();
       };
     }, []);
@@ -94,7 +97,7 @@
             />
             <TextField
               id="outlined-basic"
-              label="Send Room"
+              label="Socket Id"
               variant="outlined"
               sx={{ marginTop: 10 }}
               value={room}
@@ -108,6 +111,11 @@
               Send
             </Button>
           </form>
+          <ul>
+          {allMsg.map((msg, index) => (
+        <li key={index}>{msg}</li>
+      ))}
+          </ul>
           <h3>
             Socket-id :: {socketId}
           </h3>
