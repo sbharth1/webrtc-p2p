@@ -1,25 +1,71 @@
   import { Container, TextField, Button } from "@mui/material";
-  import React, { useEffect, useState } from "react";
+  import React, { useEffect, useRef, useState } from "react";
   import { io, Socket } from "socket.io-client";
   const socket: Socket = io("http://localhost:3000");
   const Room = () => {
     const [socketId, SetSocketId] = useState<string | undefined>();
     const [val, setVal] = useState<string>("");
     const [room, setRoom] = useState<string>("");
+    const [peerConnection,setPeerConnection] = useState<undefined>()
+    const remoteVideo = useRef<HTMLVideoElement | null>(null);
+    const localVideo = useRef<HTMLVideoElement | null>(null);
 
     const sendId = (e: React.FormEvent) => {
       e.preventDefault();
       if (val) {
-        socket.emit("message",val);
+        socket.emit("message",{room,val});
         console.log(val, "---val");
-        setVal("");
+        setVal("")
       }
     };
 
     useEffect(() => {
+
+           const pc = new RTCPeerConnection();
+           
+          //  exchange ice candidates
+           pc.onicecandidate  = (event)=>{
+            if(event.candidate){
+              socket.emit("ice-candidate",event.candidate)
+            }
+           };
+    
+          //  handle remote media tracks
+
+          pc.ontrack =(event)=>{
+            if(remoteVideo.current){
+              remoteVideo.current.srcObject = event.streams[0];
+          }}
+
+          localVideo.current!.srcObject = new MediaStream();
+          navigator.mediaDevices.getUserMedia({video:true,audio:true})
+          .then((stream) => { 
+             stream.getTracks().map((track)=> pc.addTrack(track,stream))
+             if(localVideo.current)
+             localVideo.current.srcObject = stream;
+            })
+          
+
       socket.on("connect", () => {
         console.log(`connected with id:: ${socket.id}`);
         SetSocketId(socket.id);
+
+      
+        socket.on('offer',async (offer)=>{
+             await pc.setRemoteDescription(new RTCSessionDescription(offer))
+             const answer = await pc.createAnswer()
+             await pc.setLocalDescription(answer)
+             socket.emit("answer",answer)
+        })
+
+        socket.on("answer",async(answer)=>{
+          await pc.remoteDescription(new RTCSessionDescription(answer))
+        })
+
+         socket.on("candidate",async(candidate)=>{
+          await pc.addIceCandidate(new RTCIceCandidate(candidate))
+         })
+         setPeerConnection(pc)
 
         socket.on("message",(val)=>{
           console.log(val)
@@ -34,6 +80,9 @@
     return (
       <>
         <Container maxWidth="sm">
+        <video ref={localVideo} autoPlay muted></video>
+        <video ref={remoteVideo} autoPlay></video>
+    <br/>
           <form onSubmit={sendId}>
             <TextField
               id="outlined-basic"
